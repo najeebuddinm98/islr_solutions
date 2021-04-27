@@ -1,0 +1,194 @@
+---
+title: "5.4 Exercises"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Applied
+
+## Question 5
+
+### a
+```{r}
+set.seed(1)
+library(ISLR)
+lrm = glm( default~income+balance, data = Default, family = binomial)
+summary(lrm)
+```
+### b
+```{r}
+dim(Default)
+```
+```{r}
+train = sample(10000, 9000)
+lrm2 = glm( default~income+balance, data = Default, subset = train, family = binomial)
+lrm2.pred = predict(lrm2, Default[-train,], type = "response")
+lrm2.class = rep("No", 1000)
+lrm2.class[lrm2.pred > 0.5] = "Yes"
+table(lrm2.class, Default$default[-train])
+```
+```{r}
+mean(lrm2.class != Default$default[-train])
+```
+### c
+```{r}
+train3 = sample(10000, 7500)
+lrm3 = glm( default~income+balance, data = Default, subset = train3, family = binomial)
+lrm3.pred = predict(lrm3, Default[-train3,], type = "response")
+lrm3.class = rep("No", 2500)
+lrm3.class[lrm3.pred > 0.5] = "Yes"
+mean(lrm3.class != Default$default[-train3])
+```
+
+```{r}
+train4 = sample(10000, 5000)
+lrm4 = glm( default~income+balance, data = Default, subset = train4, family = binomial)
+lrm4.pred = predict(lrm4, Default[-train4,], type = "response")
+lrm4.class = rep("No", 5000)
+lrm4.class[lrm4.pred > 0.5] = "Yes"
+mean(lrm4.class != Default$default[-train4])
+```
+### d
+```{r}
+lrm5 = glm( default~income+balance+student, data = Default, subset = train, family = binomial)
+lrm5.pred = predict(lrm5, Default[-train,], type = "response")
+lrm5.class = rep("No", 1000)
+lrm5.class[lrm5.pred > 0.5] = "Yes"
+mean(lrm5.class != Default$default[-train])
+```
+
+## Question 6
+
+### a
+```{r}
+set.seed(5)
+logrm = glm( default~income+balance, data = Default, family = binomial)
+summary(logrm)
+```
+### b
+```{r}
+boot.fn = function(data, index){
+  templrm = glm( default~income+balance, data = data, subset = index, family = binomial)
+  return (coef(templrm))
+}
+```
+### c
+```{r}
+library(boot)
+boot( Default, boot.fn, R=1000 )
+```
+
+## Question 7
+
+### a
+```{r}
+logregm1 = glm( Direction~Lag1+Lag2, data = Weekly, family = binomial)
+summary(logregm1)
+```
+### b
+```{r}
+test = 1
+logregm2 = glm( Direction~Lag1+Lag2, data = Weekly[-test, ], family = binomial)
+summary(logregm2)
+```
+### c
+```{r}
+if (predict(logregm2, Weekly[1,]) > 0.5){
+  print("UP")
+} else print("DOWN")
+```
+### d
+```{r}
+results = rep(1, 1089) #1089 is the number of observations in Weekly data set
+for (i in 1:1089){
+  tempmod = glm( Direction ~ Lag1+Lag2, data = Weekly[-i,] , family = binomial)
+  tempmod.pred = predict(tempmod, Weekly[i,], type = "response")
+  tempmod.class = if(tempmod.pred > 0.5) "Up" else "Down"
+  results[i] = if(tempmod.class == Weekly$Direction[i]) 0 else 1
+}
+```
+
+### e
+```{r}
+mean(results)
+```
+
+## Question 8
+
+### a
+```{r}
+set.seed(1)
+x = rnorm(100)
+y = x-2*x^2+rnorm(100)
+```
+### b
+```{r}
+plot(x, y)
+```
+### c
+```{r}
+set.seed(5)
+eq = data.frame(x, y)
+lm1 = glm(y~x)
+cv.glm(eq, lm1)$delta[1]
+```
+```{r}
+lm2 = glm(y~x+I(x^2))
+cv.glm(eq, lm2)$delta[1]
+```
+```{r}
+lm3 = glm(y~x+I(x^2)+I(x^3))
+cv.glm(eq, lm3)$delta[1]
+```
+```{r}
+lm4 = glm(y~x+I(x^2)+I(x^3)+I(x^4))
+cv.glm(eq, lm4)$delta[1]
+```
+## Question 9
+ 
+### a
+```{r}
+library(MASS)
+mean(Boston$medv)
+```
+### b
+```{r}
+sd(Boston$medv) / sqrt(dim(Boston)[1])
+```
+### c
+```{r}
+mean.fn = function(data, index){
+  return(mean(data[index]))
+}
+boot(Boston$medv, mean.fn, R=1000)
+```
+### d
+```{r}
+print("Actual")
+t.test(Boston$medv)
+print("Estimated")
+c(22.53 - 2*0.4, 22.53 + 2*0.4)
+```
+### e
+```{r}
+median(Boston$medv)
+```
+### f
+```{r}
+median.fn = function(data, index){
+  return(median(data[index]))
+}
+boot(Boston$medv, median.fn, R=1000)
+```
+### g
+```{r}
+quantile(Boston$medv, 0.1)
+```
+### h
+```{r}
+perc.fn = function(data, index){
+  return(quantile(data[index], 0.1))
+}
+boot(Boston$medv, perc.fn, R=1000)
+```

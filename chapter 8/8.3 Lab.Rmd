@@ -1,0 +1,188 @@
+---
+title: "8.3 Lab:Decision Trees"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Fitting Classification Trees
+
+```{r}
+library(tree)
+library(ISLR)
+```
+We convert Sales data of Carseats dataset into categorical data
+```{r}
+High = ifelse( Carseats$Sales <=8, "No", "Yes")
+cs.df = data.frame(Carseats, High)
+```
+Now,
+```{r}
+cs.df$High = as.factor(cs.df$High)
+cs.tree = tree( High ~ .-Sales, data = cs.df)
+summary(cs.tree)
+```
+The misclassification error rate in the training error rate. Now, we graphically represent the tree
+```{r}
+plot(cs.tree)
+text(cs.tree, pretty = 0)
+```
+```{r}
+cs.tree
+```
+We use validation set approach to calculate test error rate
+
+
+```{r}
+set.seed(2)
+train = sample(1:nrow(Carseats), 200)
+cs.tree2 = tree( High~.-Sales, data = cs.df, subset = train)
+cs.pred2 = predict( cs.tree2, cs.df[-train,], type="class")
+table(cs.pred2, cs.df$High[-train])
+```
+```{r}
+(104+50)/200
+```
+Now, we try pruning using cross-validation and cost complexity pruning
+```{r}
+set.seed(2)
+cs.cv = cv.tree(cs.tree2, FUN = prune.misclass) #FUN argument ensured classification error rate in considered for both pruning and CV instead of the default, deviance metric
+names(cs.cv)
+```
+```{r}
+#dev means CV error and k means tuning parameter alpha
+cs.cv
+```
+Now, we plot the error as functions of size and k
+```{r}
+par(mfrow=c(1,2))
+plot(cs.cv$size, cs.cv$dev, type = "b")
+plot(cs.cv$k, cs.cv$dev, type = "b")
+```
+Now, we prune to size=5
+```{r}
+cs.prune = prune.misclass(cs.tree2, best=5)
+plot(cs.prune)
+text(cs.prune, pretty = 0)
+```
+We find the test error rate for the pruned tree now
+```{r}
+cs.cv.pred = predict(cs.prune, cs.df[-train,], type="class")
+table(cs.df$High[-train], cs.cv.pred)
+```
+```{r}
+(82+67)/200
+```
+```{r}
+cs.prune.9 = prune.misclass(cs.tree2, best=9)
+plot(cs.prune.9)
+text(cs.prune.9, pretty = 0)
+```
+```{r}
+cs.cv.pred.9 = predict(cs.prune.9, cs.df[-train,], type="class")
+table(cs.df$High[-train], cs.cv.pred.9)
+```
+```{r}
+(97+58)/200
+```
+
+## Fitting Regression Trees
+
+```{r}
+library(MASS)
+set.seed(1)
+b.train = sample(1:nrow(Boston), nrow(Boston)/2)
+b.tree = tree(medv~., data = Boston, subset = b.train)
+summary(b.tree)
+```
+The deviance is the sum of squared errors for regression trees. Now, we plot
+```{r}
+plot(b.tree)
+text(b.tree, pretty=0)
+```
+Pruning time
+```{r}
+b.cv = cv.tree(b.tree)
+plot(b.cv$size, b.cv$dev, type = "b")
+```
+Let us observe a pruned tree of size=5
+```{r}
+b.prune = prune.tree( b.tree, best=5 )
+plot(b.prune)
+text(b.prune, pretty=0)
+```
+Our unpruned tree is best, so we calculate its test error rate now
+```{r}
+b.pred = predict( b.tree, newdata=Boston[-b.train, ])
+plot(b.pred, Boston$medv[-b.train])
+abline(0,1)
+```
+```{r}
+mean((Boston$medv[-b.train] - b.pred)^2)
+```
+
+## Bagging and Random Forests
+
+```{r}
+library(randomForest)
+set.seed(1)
+b.bag = randomForest( medv~., data = Boston, subset=b.train, mtry=13, importance=T)
+b.bag
+```
+```{r}
+b.bag.pred = predict( b.bag, newdata = Boston[-b.train,])
+plot( b.bag.pred, Boston$medv[-b.train])
+abline( 0, 1)
+```
+```{r}
+mean((b.bag.pred - Boston$medv[-b.train])^2)
+```
+Limiting the number of trees grown,
+```{r}
+b.bag.25 = randomForest( medv~., data = Boston, subset=b.train, mtry=13, ntree = 25)
+b.bag.25
+```
+```{r}
+b.bag.25.pred = predict( b.bag.25, newdata = Boston[-b.train,])
+mean((b.bag.25.pred - Boston$medv[-b.train])^2)
+```
+Growing a random forest with p=6,
+```{r}
+b.rf = randomForest( medv~., data = Boston, subset=b.train, mtry=6, importance=T)
+b.rf
+```
+```{r}
+b.rf.pred = predict( b.rf, newdata = Boston[-b.train,])
+mean((b.rf.pred - Boston$medv[-b.train])^2)
+```
+To view the importance of each variable,
+```{r}
+importance(b.rf)
+```
+```{r}
+varImpPlot(b.rf)
+```
+
+## Boosting
+
+```{r}
+library(gbm)
+set.seed(1)
+b.boost = gbm( medv~., data = Boston[b.train,], distribution="gaussian", n.trees = 5000, interaction.depth = 4)
+summary(b.boost)
+```
+```{r}
+par(mfrow=c(1,2))
+plot(b.boost, i="rm")
+plot(b.boost, i="lstat")
+```
+```{r}
+b.boost.pred = predict( b.boost, newdata = Boston[-b.train,], n.trees = 5000)
+mean((b.boost.pred - Boston$medv[-b.train])^2)
+```
+We can change the shrinkage parameter as well. By default, it is 0.001. Here, we take 0.2
+```{r}
+b.boost.2 = gbm( medv~., data = Boston[b.train,], distribution="gaussian", n.trees = 5000, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+b.boost.2.pred = predict( b.boost.2, newdata = Boston[-b.train,], n.trees = 5000)
+mean((b.boost.2.pred - Boston$medv[-b.train])^2)
+```

@@ -1,0 +1,54 @@
+---
+title: '6.7 Lab 3: PCR and PLS Regression'
+output:
+  html_document:
+    df_print: paged
+---
+
+## Principal Components Regression
+
+```{r}
+library(ISLR)
+hitter.data = na.omit(Hitters)
+library(pls)
+set.seed(2)
+pcr.fit = pcr(Salary~., data = hitter.data, scale = T, validation = "CV")
+summary(pcr.fit)
+```
+The values obtained above are root mean squared errors i.e. root of MSE. Now, we plot
+```{r}
+validationplot(pcr.fit, val.type = "MSEP") # CV MSE is plotted, defined by the val.type parameter
+```
+```{r}
+set.seed(1)
+train = sample(c(TRUE, FALSE), nrow(hitter.data), replace = T)
+pcr.fit2 = pcr( Salary~., data = hitter.data, subset = train, scale = T, validation = "CV")
+validationplot(pcr.fit2, val.type = "MSEP")
+```
+```{r}
+test = (!train)
+x = model.matrix( Salary~., hitter.data )[, -1]
+y = hitter.data$Salary
+pcr.pred = predict( pcr.fit2, x[test, ], ncomp = 7)
+mean((pcr.pred-y[test])^2)
+```
+```{r}
+pcr.fit3 = pcr( y~x, scale = T, ncomp=7)
+summary(pcr.fit3)
+```
+
+## Partial Least Squares
+
+```{r}
+set.seed(1)
+pls.fit = plsr( Salary~., data = hitter.data, subset = train, scale = T, validation = "CV")
+summary(pls.fit)
+```
+```{r}
+pls.pred = predict( pls.fit, x[test, ], ncomp=2)
+mean((pls.pred-y[test])^2)
+```
+```{r}
+pls.fit2 = plsr( Salary~., data = hitter.data, scale = T, ncomp = 2)
+summary(pls.fit2)
+```

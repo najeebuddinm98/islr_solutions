@@ -1,0 +1,110 @@
+---
+title: "3.6 Lab:Linear Regression"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(MASS)
+library(ISLR)
+```
+
+```{r}
+head(Boston)
+names(Boston)
+```
+## Simple Linear Regression
+
+```{r}
+lm.fit=lm(medv~lstat, data=Boston)
+lm.fit
+summary(lm.fit)
+```
+```{r}
+names(lm.fit)
+coef(lm.fit)
+```
+```{r}
+confint(lm.fit)
+```
+```{r}
+print("Confidence intervals")
+predict(lm.fit, data.frame(lstat=c(5,10,15)), interval = "confidence")
+print("Prediction intervals")
+predict(lm.fit, data.frame(lstat=c(5,10,15)), interval = "prediction")
+```
+```{r}
+plot(Boston$lstat, Boston$medv)
+abline(lm.fit, lwd=2, col = "green")
+```
+```{r}
+par(mfrow=c(2,2))
+plot(lm.fit)
+```
+```{r}
+plot(predict(lm.fit), residuals(lm.fit))
+plot(predict(lm.fit), rstudent(lm.fit))
+```
+```{r}
+plot(hatvalues(lm.fit))
+which.max(hatvalues(lm.fit))
+```
+## Multiple Regression
+
+```{r}
+print("medv onto lstat and age")
+lm.2=lm(medv~lstat+age, data=Boston)
+summary(lm.2)
+```
+```{r}
+print("medv onto all predictors")
+lm.all=lm(medv~., data=Boston)
+summary(lm.all)
+```
+```{r}
+library(car) #third party package that contains vif() function
+vif(lm.all)
+```
+## Interaction Terms
+
+```{r}
+lm.int = lm(medv~lstat*age, data = Boston)
+summary(lm.int)
+```
+## Non-linear transformations i.e Polynomial Regression
+
+```{r}
+lm.poly = lm(medv~lstat+I(lstat^2), data = Boston)
+summary(lm.poly)
+```
+```{r}
+anova(lm.fit, lm.poly)
+```
+```{r}
+par(mfrow=c(2,2))
+plot(lm.poly)
+```
+## Qualitative Predictors
+
+```{r}
+head(Carseats)
+names(Carseats)
+```
+```{r}
+lm.qual = lm(Sales~.+Income:Advertising+Price:Age, data = Carseats)
+summary(lm.qual)
+```
+## Writing Functions
+
+A simple example is shown below
+
+LoadLibraries = function(){
++library(ISLR)
++library(MASS)
++print("Libraries have been loaded")
+}
+}

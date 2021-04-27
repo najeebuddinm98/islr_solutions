@@ -1,0 +1,221 @@
+---
+title: "6.8 Exercises"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Applied
+
+## Question 8
+
+### a
+```{r}
+x = rnorm(100)
+e = rnorm(100)
+```
+### b
+```{r}
+y = 2 + (3*x) + (4*x^2) + (5*x^3) + e
+```
+### c
+```{r}
+df = data.frame(x, x^2, x^3, x^4, x^5, x^6, x^7, x^8, x^9, x^10, y)
+library(leaps)
+bss.fit = regsubsets( y~., data = df, nvmax = 10)
+bss.summary = summary(bss.fit)
+bss.summary
+```
+
+```{r}
+par( mfrow = c(1,3))
+plot(bss.summary$cp, type = "l")
+points( which.min(bss.summary$cp), bss.summary$cp[which.min(bss.summary$cp)], col = "red", cex =2, pch=20)
+plot(bss.summary$bic, type = "l")
+points( which.min(bss.summary$bic), bss.summary$bic[which.min(bss.summary$bic)], col = "red", cex =2, pch=20)
+plot(bss.summary$adjr2, type = "l")
+points( which.max(bss.summary$adjr2), bss.summary$adjr2[which.max(bss.summary$adjr2)], col = "red", cex =2, pch=20)
+```
+### d
+```{r}
+fss.fit = regsubsets( y~., data = df, nvmax = 10, method = "forward")
+fss.summary = summary(fss.fit)
+fss.summary
+```
+```{r}
+par( mfrow = c(1,3))
+plot(fss.summary$cp, type = "l")
+points( which.min(fss.summary$cp), fss.summary$cp[which.min(fss.summary$cp)], col = "red", cex =2, pch=20)
+plot(fss.summary$bic, type = "l")
+points( which.min(fss.summary$bic),fss.summary$bic[which.min(fss.summary$bic)], col = "red", cex =2, pch=20)
+plot(fss.summary$adjr2, type = "l")
+points( which.max(fss.summary$adjr2), fss.summary$adjr2[which.max(fss.summary$adjr2)], col = "red", cex =2, pch=20)
+```
+
+```{r}
+bks.fit = regsubsets( y~., data = df, nvmax = 10, method = "backward")
+bks.summary = summary(bks.fit)
+bks.summary
+```
+```{r}
+par( mfrow = c(1,3))
+plot(bks.summary$cp, type = "l")
+points( which.min(bks.summary$cp), bks.summary$cp[which.min(bks.summary$cp)], col = "red", cex =2, pch=20)
+plot(bks.summary$bic, type = "l")
+points( which.min(bks.summary$bic), bks.summary$bic[which.min(bks.summary$bic)], col = "red", cex =2, pch=20)
+plot(bks.summary$adjr2, type = "l")
+points( which.max(bks.summary$adjr2), bks.summary$adjr2[which.max(bks.summary$adjr2)], col = "red", cex =2, pch=20)
+```
+### e
+```{r}
+set.seed(1)
+library(glmnet)
+dfm = model.matrix(y ~ .-y, data = df)[,-1]
+lasso.fit = cv.glmnet( dfm, y, alpha=1)
+plot(lasso.fit)
+```
+```{r}
+bestlam = lasso.fit$lambda.min
+bestlam
+predict( lasso.fit, type = "coefficients", s=bestlam)
+```
+### f
+```{r}
+ynew = 2 + (9*x^7) + e
+df.new = data.frame( df[,-11], ynew)
+bss.fit.7 = regsubsets( ynew~., data = df.new, nvmax=10)
+summary(bss.fit.7)
+```
+```{r}
+dfm.new = model.matrix(ynew ~ .-ynew, data = df.new)[,-1]
+lasso.fit.new = cv.glmnet( dfm.new, ynew, alpha=1)
+plot(lasso.fit.new)
+lasso.fit.new$lambda.min
+```
+
+## Question 9
+
+```{r}
+library(ISLR)
+names(College)
+```
+### a
+```{r}
+train = sample( c(TRUE, FALSE), nrow(College), replace = T)
+test = (!train)
+```
+### b
+```{r}
+library(MASS)
+lr.fit = lm( Accept~., data = College, subset = train)
+lr.pred = predict( lr.fit, College[test,], type = "response")
+mean((lr.pred-College$Accept[test])^2)
+```
+### c
+```{r}
+colx = model.matrix( Accept~.-Accept, data = College[train,])[,-1]
+colx.test = model.matrix( Accept~.-Accept, data = College[test,])[,-1]
+coly = College$Accept[train]
+coly.test = College$Accept[test]
+rr.fit = cv.glmnet( colx, coly, alpha = 0)
+rr.bestlam = rr.fit$lambda.min
+rr.pred = predict( rr.fit, newx = colx.test, s=rr.bestlam)
+mean((rr.pred - coly.test)^2)
+```
+### d
+```{r}
+las.fit = cv.glmnet( colx, coly, alpha=1)
+las.bestlam = las.fit$lambda.min
+las.pred = predict( las.fit, newx = colx.test, s=las.bestlam)
+mean((las.pred - coly.test)^2) 
+predict(las.fit, type = "coefficients", s=las.bestlam)
+```
+### e
+```{r}
+library(pls)
+pcr.fit = pcr( Accept~., data = College, subset = train, scale = T, validation = "CV")
+summary(pcr.fit)
+```
+```{r}
+validationplot( pcr.fit, val.type = "MSE")
+```
+```{r}
+pcr.pred = predict(pcr.fit, College[test,], ncomp=15)
+mean( (pcr.pred - College$Accept[test])^2)
+```
+### f
+```{r}
+pls.fit = plsr( Accept~., data = College, subset = train, scale = T, validation = "CV")
+summary(pls.fit)
+```
+```{r}
+validationplot( pls.fit, val.type = "MSEP")
+```
+```{r}
+pls.pred = predict(pls.fit, College[test,], ncomp=10)
+mean( (pls.pred - College$Accept[test])^2)
+```
+
+## Question 10
+
+### a
+```{r}
+x = matrix( rnorm(1000*20), nrow = 1000, ncol = 20 )
+b = rnorm(20)
+temp = c(3, 6, 7, 9, 14, 18)
+b[temp] = 0
+e = rnorm(1000)
+y = x %*% b + e
+```
+### b
+```{r}
+trainf = sample( 1:1000, 900)
+testf = (-trainf)
+```
+### c
+```{r}
+df = data.frame(x,y)
+rbss.fit = regsubsets( y~., data = df, subset = trainf, nvmax=20)
+summary(rbss.fit)
+```
+```{r}
+# all the below is needed because regsubsets doesnt have a predict funtion
+train.mat = model.matrix( y~., data = df[trainf,], nvmax=20)
+val.errors = rep(NA, 20)
+for (i in 1:20){
+  coefi = coef( rbss.fit, id = i)
+  pred = train.mat[,names(coefi)]%*%coefi #values * estimated coefficients
+  val.errors[i] = mean((df$y[trainf]-pred)^2)
+}
+plot(val.errors, xlab = "Number of predictors", ylab = "train MSE", type = "b")
+```
+### d
+```{r}
+test.mat = model.matrix( y~., data = df[testf,], nvmax=20)
+val.errors.t = rep(NA, 20)
+for (i in 1:20){
+  coefi = coef( rbss.fit, id = i)
+  pred = test.mat[,names(coefi)]%*%coefi #values * estimated coefficients
+  val.errors.t[i] = mean((df$y[testf]-pred)^2)
+}
+plot(val.errors.t, xlab = "Number of predictors", ylab = "test MSE", type = "b")
+```
+### e
+```{r}
+which.min(val.errors.t)
+```
+### f
+```{r}
+coef( rbss.fit, id = 9)
+```
+### g (not working for some reason)
+
+g = rep(NA, 20)
+for(i in 1:20) {
+  coef.i <- coef(rbss.fit, id=i)
+  df.err = merge(data.frame(beta=names(b),b), data.frame(beta=names(coef.i),coef.i), all.x=T)
+  df.err[is.na(df.err[,3]),3] = 0
+  err.coef[i] <- sqrt(sum((df.err[,2] - df.err[,3])^2))
+}
+plot(1:20, err.coef, type="b", main="Coefficient Error", xlab="Number of Predictors")
+

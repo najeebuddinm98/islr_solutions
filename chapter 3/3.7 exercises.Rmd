@@ -1,0 +1,247 @@
+---
+title: "3.7 Exercises"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Applied
+
+## Question 8
+
+### a
+```{r}
+auto = read.table("Auto.data", header = TRUE, na.strings = "?")
+head(auto)
+```
+```{r}
+lrm1 = lm(mpg~horsepower, data = auto)
+summary(lrm1)
+```
+```{r}
+print("Confidence intervals")
+predict(lrm1, data.frame(horsepower = c(98)), interval = "confidence" )
+print("Prediction intervals")
+predict(lrm1, data.frame(horsepower = c(98)), interval = "prediction" )
+```
+### b
+```{r}
+plot(auto$horsepower, auto$mpg, main = "Linear regression", xlab = "Horsepower", ylab = "MPG" )
+abline(lrm1, col='red', lwd=2)
+```
+### c
+```{r}
+par(mfrow=c(2,2))
+plot(lrm1)
+```
+
+## Question 9
+
+### a
+```{r}
+pairs(auto[,1:8]) #names column is qualitative, so we ignore
+```
+### b
+```{r}
+cor(auto[ , 1:8], use = "complete.obs") #use argument ignores the NAs in the dataframe
+```
+### c
+```{r}
+lrm2 = lm(mpg~.-name, data=auto)
+summary(lrm2)
+```
+### d
+```{r}
+par(mfrow=c(2,2))
+plot(lrm2)
+```
+### e
+```{r}
+lrm3 = lm(mpg~.*., data=auto[,-9])
+summary(lrm3)
+```
+## Question 10
+
+### a
+```{r}
+library(ISLR)
+head(Carseats)
+```
+```{r}
+cs.model1 = lm(Sales ~ Price+Urban+US, data=Carseats)
+summary(cs.model1)
+```
+### e
+```{r}
+cs.model2 = lm(Sales ~ Price+US, data=Carseats)
+summary(cs.model2)
+```
+### f
+```{r}
+library(car)
+anova(cs.model1, cs.model2)
+```
+### g
+```{r}
+confint(cs.model2, level = 0.95)
+```
+### h
+```{r}
+par(mfrow=c(2,2))
+plot(cs.model2)
+```
+## Question 11
+
+### a
+```{r}
+set.seed(1)
+x=rnorm(100)
+y=2*x+rnorm(100)
+df = data.frame(x,y) #temporarily for display
+head(df)
+```
+```{r}
+ranmod1 = lm(y~x+0)
+summary(ranmod1)
+```
+### b
+```{r}
+ranmod2 = lm(x~y+0)
+summary(ranmod2)
+```
+## Question 12
+
+### b
+```{r}
+a=rnorm(200)
+b=a+rnorm(200)
+coefficients(lm(b~a+0)) == coefficients(lm(a~b+0))
+```
+### c
+```{r}
+b=abs(a)
+coefficients(lm(b~a+0)) == coefficients(lm(a~b+0))
+```
+### Question 13
+
+### a
+```{r}
+set.seed(1)
+x=rnorm(100)
+```
+
+### b
+```{r}
+eps=rnorm(100, sd=0.5)
+```
+
+### c
+```{r}
+y = -1+0.5*x+eps
+length(y)
+```
+
+### d
+```{r}
+plot(x,y, col='red')
+```
+### e
+```{r}
+sim.model = lm(y~x)
+coefficients(sim.model)
+```
+
+### f
+```{r}
+plot(x,y)
+abline(sim.model, col="red", )
+abline(coef = c(-1,0.5), col="blue")
+legend(-2.3,0.4, legend = c("Least squares model", "Population regression plot"), col = c("red", "blue"), lty = 1, lwd=2)
+```
+### g
+```{r}
+summary(lm(y~I(x^2)))
+```
+### h,i,j
+Increase or decrease variance (and in turn, standard deviation) to increase and decrease noise respectively
+
+## Question 14
+
+## a
+```{r}
+set.seed(1)
+x1=runif(100)
+x2=0.5*x1+rnorm(100)/10
+y=2+2*x1+0.3*x2+rnorm(100)
+```
+
+### b
+```{r}
+cor(x1,x2)
+plot(x1,x2)
+```
+### c
+```{r}
+summary(lm(y~x1+x2))
+```
+### d
+```{r}
+summary(lm(y~x1))
+```
+### e
+```{r}
+summary(lm(y~x2))
+```
+### g
+```{r}
+x1=c(x1, 0.1)
+x2=c(x2, 0.8)
+y=c(y,6)
+print("Combined")
+summary(lm(y~x1+x2))
+print("Only x1")
+summary(lm(y~x1))
+print("Only x2")
+summary(lm(y~x2))
+```
+
+## Question 15
+
+```{r}
+library(MASS)
+head(Boston)
+```
+
+### a
+
+```{r}
+for (i in 2:ncol(Boston)) {
+  print(summary(lm(Boston$crim~Boston[,i]))$coefficients)
+  print("")
+}
+```
+### b
+```{r}
+summary(lm(crim~., data=Boston))
+```
+### c
+```{r}
+uni = c()
+mul = c()
+for (i in 2:ncol(Boston)) {
+  uni = c(uni, summary(lm(Boston$crim~Boston[,i]))$coefficients[2,1])
+}
+mul = summary(lm(crim~., data=Boston))$coefficients[-1,1]
+plot(uni, mul)
+#text(uni, mul, labels = names(Boston)[-1]) to add predictor name
+```
+### d
+```{r}
+for (i in 2:ncol(Boston)) {
+  t = Boston[,i]
+  print(summary(lm(Boston$crim~t+I(t^2)+I(t^3)))$r.squared)
+  print("")
+}
+```

@@ -1,0 +1,114 @@
+---
+title: "5.3 Lab"
+output:
+  html_document:
+    df_print: paged
+---
+ 
+# Cross-Validation
+
+## Validation Set Approach
+```{r}
+library(ISLR)
+set.seed(1)
+train = sample(x = 392, size = 196) #sample size pf 192 from the data 1:392
+```
+We perform linear regression with training data and calculate test MSE
+```{r}
+lrm1 = lm( mpg~horsepower, data = Auto, subset = train)
+mean((Auto$mpg - predict(lrm1, Auto))[-train]^2) #MSE of validation set
+```
+For polynomial regression
+```{r}
+lrm2 = lm(mpg~poly(horsepower,2), data = Auto, subset = train)
+lrm3 = lm(mpg~poly(horsepower,3), data = Auto, subset = train)
+print("Test MSE for quadratic regression")
+mean((Auto$mpg - predict(lrm2, Auto))[-train]^2)
+print("Test MSE for Cubic regression")
+mean((Auto$mpg - predict(lrm3, Auto))[-train]^2)
+```
+Choosing a different sample
+```{r}
+set.seed(2)
+train2 = sample(x = 392, size = 196) #sample size pf 192 from the data 1:392
+```
+
+```{r}
+lrm4 = lm( mpg~horsepower, data = Auto, subset = train2)
+lrm5 = lm(mpg~poly(horsepower,2), data = Auto, subset = train2)
+lrm6 = lm(mpg~poly(horsepower,3), data = Auto, subset = train2)
+print("Test MSE for linear regression")
+mean((Auto$mpg - predict(lrm4, Auto))[-train2]^2)
+print("Test MSE for quadratic regression")
+mean((Auto$mpg - predict(lrm5, Auto))[-train2]^2)
+print("Test MSE for Cubic regression")
+mean((Auto$mpg - predict(lrm6, Auto))[-train2]^2)
+```
+## Leave-One-Out Cross-Validation
+```{r}
+library(boot)
+glm1 = glm(mpg~horsepower, data = Auto)
+cv.err = cv.glm(Auto, glm1)
+cv.err$delta #gives test MSE
+```
+For comparing various degrees of freedom,
+```{r}
+cv.error = rep(0,5)
+for (i in 1:5){
+  glm2 = glm( mpg~poly(horsepower, i), data = Auto)
+  cv.error[i] = cv.glm(Auto, glm2)$delta[1]
+}
+cv.error
+```
+## k-Fold Cross-Validation
+```{r}
+set.seed(17)
+cv.error.10 = rep(0, 10)
+for (i in 1:10){
+  glm3 = glm( mpg~poly(horsepower, i), data = Auto)
+  cv.error.10[i] = cv.glm(Auto, glm2, K = 10)$delta[1] #giving a K argument makes this k-Fold from LOOCV
+}
+cv.error.10
+```
+# Bootstrap
+
+## Accuracy of a statistic
+```{r}
+alpha.fn = function(data, index){
+  X = data$X[index]
+  Y = data$Y[index]
+  alpha = ( var(Y) - cov(X,Y) ) / ( var(X) + var(Y) - 2*cov(X,Y) )
+  return (alpha)
+}
+alpha.fn(Portfolio, index = 1:100)
+```
+```{r}
+set.seed(1)
+alpha.fn(Portfolio, sample(100, 100, replace = T))
+```
+```{r}
+boot(Portfolio, alpha.fn, R=1000)
+```
+## Accuracy of a Linear Regression
+```{r}
+lrcoeff.fn = function(data, index){
+  return ( coef( lm( mpg~horsepower, data = data, subset = index ) ) )
+}
+lrcoeff.fn(Auto, 1:392)
+```
+```{r}
+set.seed(1)
+lrcoeff.fn(Auto, sample(392, 392, replace = T))
+lrcoeff.fn(Auto, sample(392, 392, replace = T))
+```
+```{r}
+boot(Auto, lrcoeff.fn, R = 1000)
+```
+```{r}
+prcoeff.fn = function(data, index){
+  return ( coef( lm( mpg~horsepower+I(horsepower^2), data = data, subset = index ) ) )
+}
+summary(lm( mpg~horsepower+I(horsepower^2), data = Auto))$coeff
+boot(Auto, prcoeff.fn, R=1000)
+```
+As the quadratic polynomial is closer to the real model than the linear one, the standard errors calculated from Linear Regression formulae and the Bootstrap method are closer in value to each other

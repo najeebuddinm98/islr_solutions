@@ -1,0 +1,141 @@
+---
+title: '6.5 Lab 1: Subset Selection Methods'
+output:
+  html_document:
+    df_print: paged
+---
+
+## Best Subset Selection
+
+```{r}
+library(ISLR)
+head(Hitters)
+```
+```{r}
+names(Hitters)
+dim(Hitters)
+sum(is.na(Hitters$Salary))
+```
+```{r}
+hitter.data = na.omit(Hitters)
+sum(is.na(hitter.data))
+dim(hitter.data)
+```
+```{r}
+library(leaps)
+regfit.full = regsubsets(Salary~., hitter.data)
+summary(regfit.full)
+```
+By default, regsubsets() gets upto an eight variable model. To get more, we use the nvmax parameter
+```{r}
+regfit.full19 = regsubsets(Salary~., hitter.data, nvmax = 19)
+reg.summary = summary(regfit.full19)
+names(reg.summary)
+```
+```{r}
+reg.summary$rsq
+```
+```{r}
+par(mfrow = c(2,2))
+a = which.min(reg.summary$rss) #finding index of maximum value
+b = which.max(reg.summary$adjr2)
+c = which.min(reg.summary$cp)
+d = which.min(reg.summary$bic)
+plot( reg.summary$rss, xlab = "No of variables", ylab = "RSS", type = "l")
+points(a, reg.summary$rss[a], col="red", cex = 2, pch = 20)
+plot( reg.summary$adjr2, xlab = "No of variables", ylab = "Adjusted R^2", type = "l")
+points(b, reg.summary$adjr[b], col="red", cex = 2, pch = 20)
+plot( reg.summary$cp, xlab = "No of variables", ylab = "Cp", type = "l")
+points(c, reg.summary$cp[c], col="red", cex = 2, pch = 20)
+plot( reg.summary$bic, xlab = "No of variables", ylab = "BIC", type = "l")
+points(d, reg.summary$bic[d], col="red", cex = 2, pch = 20)
+```
+```{r}
+plot(regfit.full19, scale = "r2")
+plot(regfit.full19, scale = "adjr2")
+plot(regfit.full19, scale = "Cp")
+plot(regfit.full19, scale = "bic")
+```
+```{r}
+coef(regfit.full19, 6) #coefficients of best model with 6 predictors
+```
+
+## Forward & Backward Stepwise Selection
+
+```{r}
+regfit.fwd = regsubsets( Salary~., hitter.data, nvmax = 19, method = "forward")
+summary(regfit.fwd)
+regfit.bwd = regsubsets( Salary~., hitter.data, nvmax = 19, method = "backward")
+summary(regfit.bwd)
+```
+```{r}
+coef(regfit.full19, 7)
+coef(regfit.fwd, 7)
+coef(regfit.bwd, 7)
+```
+Clearly, all 3 methods give different models
+
+## Choosing among models using Validation Set approach and Cross-Validation
+
+```{r}
+set.seed(1)
+train = sample(c(T, F), nrow(hitter.data), replace = T)
+test = (!train)
+regfit.best = regsubsets( Salary~., data = hitter.data[train, ], nvmax =19)
+test.mat = model.matrix( Salary~., data = hitter.data[test, ])
+```
+We now calculate test MSE for all possible model sizes
+```{r}
+val.errors = rep(NA, 19)
+for (i in 1:19){
+  coefi = coef(regfit.best, i)
+  pred = test.mat[, names(coefi)]%*%coefi ## %*% is for matrix multiplication
+  val.errors[i] = mean((hitter.data$Salary[test] - pred)^2)
+}
+val.errors
+which.min(val.errors)
+```
+Clearly, our best model selected ny Validation Set approach has 7 predictors. Our final step is finding their coeffcients with the entire dataset fitted to the model
+```{r}
+coef(regfit.best, 7)
+```
+
+We need to use model.matrix and the rest of the statements in for loop because regsubstes() doesnt work with predict()
+If we are going to this often, we can define a fucntion as follows
+```{r}
+predict.regsubsets = function(object, data, id, ...){
+  form = as.formula(object$call[[2]])
+  mat = model.matrix(form, data)
+  coefi = coef(object, id)
+  xvars = names(coefi)
+  mat[, xvars]%*%coefi
+}
+```
+Now, for k-Fold Cross-Validation
+```{r}
+k=10
+set.seed(1)
+folds = sample(1:k, nrow(hitter.data), replace = T)
+cv.errors = matrix(NA, k, 19, dimnames = list(NULL, 1:19))
+
+for (j in 1:k) {
+    best.fit = regsubsets(Salary ~ ., data = hitter.data[folds != j, ], nvmax = 19)
+    for (i in 1:19) {
+        pred = predict(best.fit, hitter.data[folds == j, ], id = i)
+        cv.errors[j, i] = mean((hitter.data$Salary[folds == j] - pred)^2)
+    }
+}
+```
+Averaging the mean for every column,
+```{r}
+mean.cv.errors = apply(cv.errors, 2, mean) # 2 indicated column operation
+mean.cv.errors
+```
+```{r}
+plot(mean.cv.errors, type = "b")
+```
+We now know that the 10-variable model is the best
+```{r}
+coef(regfit.best, 10)
+```
+

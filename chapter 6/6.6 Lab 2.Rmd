@@ -1,0 +1,98 @@
+---
+title: '6.6 Lab 2: Ridge Regression and Lasso'
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(ISLR)
+hitter.data = na.omit(Hitters)
+x = model.matrix( Salary~., hitter.data)[, -1] #-1 removes Intercept column
+y = hitter.data$Salary
+```
+## Ridge Regression
+
+```{r}
+library(glmnet)
+grid = 10^seq(10, -2, length = 100) #will act as our tuning parameter "lambda"
+ridge.mod = glmnet(x, y, alpha = 0, lambda = grid) #alpha=0 indicates ridge regression, by default standardization takes place
+dim(coef(ridge.mod))
+```
+```{r}
+ridge.mod$lambda[50]
+print("Coefficients for column 50")
+coef(ridge.mod)[,50]
+print("l2 norm for column 50")
+sqrt(sum(coef(ridge.mod)[-1,50]^2))
+```
+```{r}
+ridge.mod$lambda[60]
+print("Coefficients for column 60")
+coef(ridge.mod)[,60]
+print("l2 norm for column 60")
+sqrt(sum(coef(ridge.mod)[-1,60]^2))
+```
+```{r}
+predict( ridge.mod, s=50, type = "coefficients")[1:20, ] #lambda=50
+```
+Now, we use Validation Set approach
+```{r}
+set.seed(1)
+train = sample(1:nrow(x), nrow(x)/2) #half the dataset randomly as training data
+test = (-train)
+
+ridge.mod.vs = glmnet(x[train,], y[train], alpha = 0, lambda = grid)
+ridge.pred.vs = predict( ridge.mod.vs, s=4, newx = x[test,])
+mean((ridge.pred.vs-y[test])^2) #test MSE
+```
+```{r}
+mean((mean(y[train])-y[test])^2) #test MSE for model with only intercept
+ridge.pred.high = predict( ridge.mod.vs, s=1e10, newx = x[test,])
+mean((ridge.pred.high-y[test])^2) #test MSE for lambda=10^10
+```
+We will see how least squares linear progression performs
+```{r}
+ridge.pred.ls = predict( ridge.mod.vs, s=0, newx = x[test,]) #see textbook for more info here
+mean((ridge.pred.ls-y[test])^2) #test MSE
+```
+Now, we try k-Fold Cross Validation
+```{r}
+set.seed(1)
+cv.out = cv.glmnet(x[train, ], y[train], alpha=0) #tenfold by default
+plot(cv.out)
+```
+```{r}
+bestlam = cv.out$lambda.min
+bestlam
+ridge.pred.cv = predict( ridge.mod.vs, s=bestlam, newx = x[test,])
+mean((ridge.pred.cv-y[test])^2) #test MSE
+```
+Our best lambda is 326. We now fit a ridge regression to the entire dataset with this lamda value
+```{r}
+final = glmnet(x, y, alpha = 0)
+predict( final, s=bestlam, type = "coefficients")[1:20,]
+```
+
+## Lasso
+
+```{r}
+lasso.mod = glmnet(x[train, ], y[train], alpha = 1, lambda = grid)
+plot(lasso.mod)
+```
+```{r}
+set.seed(1)
+cv.out.la = cv.glmnet(x[train, ], y[train], alpha = 1)
+plot(cv.out.la)
+```
+```{r}
+bestlam.la = cv.out.la$lambda.min
+bestlam.la
+lasso.pred = predict( lasso.mod, s=bestlam.la, newx = x[test,])
+mean((lasso.pred-y[test])^2)
+```
+```{r}
+final.la = glmnet(x, y, alpha = 1)
+predict(final.la, s=bestlam.la, type = "coefficients")[1:20,]
+```
+

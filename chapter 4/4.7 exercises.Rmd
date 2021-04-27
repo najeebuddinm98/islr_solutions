@@ -1,0 +1,210 @@
+---
+title: "4.7 Exercises"
+output: html_notebook
+---
+# Applied
+
+## Question 10
+```{r}
+library(ISLR)
+head(Weekly)
+```
+### a
+```{r}
+dim(Weekly)
+summary(Weekly)
+pairs(Weekly)
+```
+### b
+```{r}
+logregm1 = glm( Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=Weekly, family = binomial)
+summary(logregm1)
+```
+### c
+```{r}
+logregm1.pred = predict(logregm1, response = "prediction")
+logregm1.class = rep("Down", 1089)
+logregm1.class[logregm1.pred > 0.5] = "Up"
+table(logregm1.class, Weekly$Direction)
+```
+```{r}
+print("Correct predictions")
+(42+465)/1089
+```
+### d
+```{r}
+train.filter = (Weekly$Year >= 1990 & Weekly$Year <=2008 )
+training.X = Weekly[train.filter, ]
+testing.X = Weekly[!train.filter, ]
+training.Y = Weekly$Direction[train.filter]
+testing.Y = Weekly$Direction[!train.filter]
+
+logregm2 = glm( Direction~Lag2, data = Weekly, subset = train.filter, family = binomial)
+summary(logregm2)
+```
+```{r}
+logregm2.pred = predict(logregm2, testing.X, response = "prediction")
+logregm2.class = rep("Down", dim(testing.X)[1])
+logregm2.class[logregm2.pred > 0.5] = "Up"
+table(logregm2.class, testing.Y)
+```
+```{r}
+print("Correct predictions")
+(5+41)/104
+```
+### e
+```{r}
+library(MASS)
+ldam1 = lda(Direction~Lag2, data = Weekly, subset = train.filter)
+ldam1
+```
+```{r}
+ldam1.pred = predict(ldam1, testing.X)
+ldam1.class = ldam1.pred$class
+table(ldam1.class, testing.Y)
+mean(ldam1.class == testing.Y)
+```
+### f
+```{r}
+qdam1 = qda(Direction~Lag2, data = Weekly, subset = train.filter)
+qdam1
+```
+```{r}
+qdam1.pred = predict(qdam1, testing.X)
+qdam1.class = qdam1.pred$class
+table(qdam1.class, testing.Y)
+mean(qdam1.class == testing.Y)
+```
+### g
+```{r}
+library(class)
+standardizedtraining.X = scale(training.X$Lag2)
+standardizedtesting.X = scale(testing.X$Lag2)
+set.seed(1)
+knnm1.pred = knn(standardizedtraining.X, standardizedtesting.X, training.Y, k=1)
+table(knnm1.pred, testing.Y)
+mean(knnm1.pred == testing.Y)
+```
+Manual testing has shown that k=10 gives the most success rate, of about 55.8%. Overall, LDA is clearly the best method with a success rate of 62.5%
+
+## Question 11
+
+```{r}
+head(Auto)
+```
+### a
+```{r}
+mpg01 = rep(0, 392)
+mpg01[Auto$mpg > median(Auto$mpg)] = 1
+newauto = data.frame(mpg01, Auto[,-1])
+newauto$mpg01 = as.factor(newauto$mpg01)
+head(newauto)
+```
+### b
+```{r}
+pairs(newauto)
+```
+```{r}
+par(mfrow=c(1,4))
+plot(newauto$mpg01, newauto$horsepower)
+plot(newauto$mpg01, newauto$weight)
+plot(newauto$mpg01, newauto$displacement)
+plot(newauto$mpg01, newauto$cylinders)
+```
+### c
+```{r}
+auto.train.filter = (newauto$year < 78)
+newauto.train = newauto[auto.train.filter,]
+newauto.test = newauto[!auto.train.filter,]
+```
+
+### d
+```{r}
+library(MASS)
+ldam2 = lda(mpg01~horsepower+weight+displacement, data = newauto.train)
+ldam2
+```
+```{r}
+ldam2.pred = predict(ldam2, newauto.test, response="prediction")
+ldam2.class = ldam2.pred$class
+test.mpg = newauto.test$mpg01
+table(ldam2.class, test.mpg)
+mean(ldam2.class == test.mpg)
+```
+### e
+```{r}
+qdam2 = qda(mpg01~horsepower+weight+displacement+cylinders, data = newauto.train)
+qdam2
+```
+```{r}
+qdam2.pred = predict(qdam2, newauto.test, response="prediction")
+qdam2.class = qdam2.pred$class
+table(qdam2.class, test.mpg)
+mean(qdam2.class == test.mpg)
+```
+### f
+```{r}
+logregm3 = glm(mpg01~horsepower+weight+displacement, data = newauto.train, family = binomial)
+summary(logregm3)
+```
+```{r}
+logregm3.pred = predict(logregm3, newauto.test, response = "prediction")
+logregm3.class = rep(0, 150)
+logregm3.class[logregm3.pred >= 0.5] = 1
+table(logregm3.class, test.mpg)
+mean(logregm3.class == test.mpg)
+```
+### g
+```{r}
+library(class)
+train2.X = cbind(newauto.train$displacement, newauto.train$horsepower, newauto.train$acceleration)
+test2.X = cbind(newauto.test$displacement, newauto.test$horsepower, newauto.test$acceleration)
+train2.Y = newauto.train$mpg01
+knnm2.pred = knn(train2.X, test2.X, train2.Y, k=6)
+table(knnm2.pred, test.mpg)
+mean(knnm2.pred == test.mpg)
+```
+
+## Question 12
+
+### a
+```{r}
+Power = function(){
+  print(2^3)
+}
+Power()
+```
+### b
+```{r}
+Power2 = function(x,a){
+  print(x^a)
+}
+Power2(3,8)
+```
+### c
+```{r}
+Power2(10,3)
+Power2(8,17)
+Power2(131,3)
+```
+### d
+```{r}
+Power3 = function(x, a){
+  result = x^a
+  return(result)
+}
+```
+### e
+```{r}
+x = 1:10
+y = Power3(x, 2)
+plot(x, y, log = "y", main = "Squares", xlab = "input", ylab = "output", type = "o") #type=o indicates a mix of scatter plot and line graph
+```
+### f
+```{r}
+PlotPower = function(x, a){
+  y = x^a
+  plot(x, y, main = "Power plot")
+}
+PlotPower(x = 1:10, a = 3)
+```

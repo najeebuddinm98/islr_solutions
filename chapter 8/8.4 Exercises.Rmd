@@ -1,0 +1,279 @@
+---
+title: "8.4 Exercises"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Applied
+
+## Question 7
+
+```{r}
+library(randomForest)
+library(MASS)
+```
+Now, we make a function to perform Random Forest
+```{r}
+set.seed(1)
+train = sample(1:nrow(Boston), nrow(Boston)/2)
+performRF = function(mt, nt){
+  rf = randomForest(medv~., data = Boston, subset = train, mtry = mt, ntree = nt)
+  rf.pred = predict(rf, newdata = Boston[-train,])
+  rf.err = mean((Boston$medv[train] - rf.pred)^2)
+  return(rf.err)
+}
+```
+Finally,
+```{r}
+err1 = rep(0,50)
+err2 = rep(0,50)
+err3 = rep(0,50)
+for (i in seq(20,1000,20)){
+  err1[i/20] = performRF(mt = 4, nt = i)
+  err2[i/20] = performRF(mt = 6, nt = i)
+  err3[i/20] = performRF(mt = 10, nt = i)
+}
+```
+Now, we plot
+```{r}
+x = seq(20,1000,20)
+plot(x, err3, , type="l", col="green", ylim = c(100,160), xlab = "Number of trees", ylab = "Test Error")
+lines(x, err2, col="blue")
+lines(x, err1, col="red")
+legend(x = "top", legend = c("m=10", "m=6", "m=4"), col = c("green", "blue", "red"), lty = 1)
+```
+
+## Question 8
+
+### a
+```{r}
+library(ISLR)
+set.seed(5)
+c.train = sample(1:nrow(Carseats), nrow(Carseats)/2)
+```
+### b
+```{r}
+library(tree)
+c.tree = tree( Sales~., data = Carseats, subset = c.train)
+plot(c.tree)
+text(c.tree, pretty = 5)
+```
+```{r}
+c.pred = predict( c.tree, newdata = Carseats[-c.train,])
+mean((Carseats$Sales[-c.train] - c.pred)^2)
+```
+### c
+```{r}
+c.cv = cv.tree(c.tree)
+plot(c.cv$size, c.cv$dev, type="b")
+```
+```{r}
+c.prune = prune.tree(c.tree, best=4)
+plot(c.prune)
+text(c.prune, pretty=0)
+```
+```{r}
+c.prune.pred = predict(c.prune, Carseats[-c.train,])
+mean((Carseats$Sales[-c.train] - c.prune.pred)^2)
+```
+### d
+```{r}
+c.bag = randomForest( Sales~., data = Carseats, subset = c.train, mtry = 11, importance = T)
+c.bag
+```
+```{r}
+c.bag.pred = predict(c.bag, newdata = Carseats[-c.train,])
+mean((Carseats$Sales[c.train] - c.bag.pred)^2)
+```
+```{r}
+importance(c.bag)
+```
+### e
+Similar to question 8
+
+## Question 9
+
+```{r}
+library(ISLR)
+```
+### a
+```{r}
+set.seed(3)
+oj.train = sample(1:nrow(OJ), 800)
+```
+### b
+```{r}
+oj.tree = tree( Purchase~., data = OJ, subset = oj.train)
+summary(oj.tree)
+```
+### c
+```{r}
+oj.tree
+```
+### d
+```{r}
+plot(oj.tree)
+text(oj.tree, pretty=0)
+```
+### e
+```{r}
+oj.pred = predict( oj.tree, newdata = OJ[-oj.train,], type="class")
+table(oj.pred, OJ$Purchase[-oj.train])
+```
+```{r}
+1-((148+76)/270)
+```
+### f
+```{r}
+oj.cv = cv.tree(oj.tree, FUN = prune.misclass)
+```
+### g
+```{r}
+plot(oj.cv$size, oj.cv$dev, type = "b")
+```
+### i
+```{r}
+oj.prune = prune.tree( oj.tree, best=5)
+plot(oj.prune)
+text(oj.prune, pretty=0)
+```
+### j
+```{r}
+oj.prune.pred = predict( oj.prune, newdata = OJ[-oj.train,], type="class")
+table(oj.prune.pred, OJ$Purchase[-oj.train])
+```
+```{r}
+1-((129+89)/270)
+```
+
+## Question 10
+
+### a
+```{r}
+df = na.omit(Hitters)
+LogSal = log(df$Salary)
+```
+```{r}
+hitdf = data.frame(df, LogSal)
+```
+### b
+```{r}
+hitdf.train = hitdf[1:200,-19]
+hitdf.test = hitdf[201:263,-19]
+```
+### c
+```{r}
+library(gbm)
+trainerr = c()
+testerr = c()
+
+for (i in seq(0.002, 0.1, 0.002)){
+  h.boost = gbm( LogSal~., data = hitdf.train, distribution = "gaussian", n.trees = 1000, interaction.depth = 4, shrinkage = i)
+  
+  h.pred.train = predict( h.boost, hitdf.train, n.trees = 1000)
+  trainerr = append(trainerr, mean((h.pred.train - hitdf.train$LogSal)^2))
+  
+  h.pred.test = predict( h.boost, hitdf.test, n.trees = 1000)
+  testerr = append(testerr, mean((h.pred.test - hitdf.test$LogSal)^2))
+}
+```
+Plotting,
+```{r}
+plot( seq(0.002, 0.1, 0.002), trainerr, type = "l", xlab = "Shrinkage", ylab = "Training error")
+```
+### d
+```{r}
+plot( seq(0.002, 0.1, 0.002), testerr, type = "l", xlab = "Shrinkage", ylab = "Test error")
+```
+### e
+```{r}
+# linear
+h.lm = lm(LogSal~., data = hitdf.train)
+h.lm.pred = predict(h.lm, hitdf.test)
+mean((h.lm.pred - hitdf.test$LogSal)^2)
+```
+```{r}
+# ridge
+library(glmnet)
+x.train = model.matrix(LogSal~., hitdf.train)[,-1]
+y.train = hitdf.train$LogSal
+
+x.test = model.matrix(LogSal~., hitdf.test)[,-1]
+y.test = hitdf.test$LogSal
+
+h.rr = cv.glmnet(x.train, y.train, alpha=0)
+bestlam = h.rr$lambda.min
+h.rr.pred = predict(h.rr, x.test, s=bestlam)
+mean((h.rr.pred - y.test)^2)
+```
+```{r}
+# lasso
+h.lasso = cv.glmnet(x.train, y.train, alpha=1)
+bestlam.lasso = h.lasso$lambda.min
+h.lasso.pred = predict(h.lasso, x.test, s=bestlam.lasso)
+mean((h.lasso.pred - y.test)^2)
+```
+```{r}
+#boosting
+h.boosting = gbm( LogSal~., data = hitdf.train, distribution = "gaussian", n.trees = 1000, interaction.depth = 4, shrinkage = 0.02)
+h.boost.pred = predict( h.boosting, hitdf.test, n.trees = 1000)
+mean((h.boost.pred - hitdf.test$LogSal)^2)
+```
+### f
+```{r}
+summary(h.boosting)
+```
+### g
+```{r}
+h.rf = randomForest(LogSal~., data = hitdf.train, mtry=19, importance = T)
+h.rf.pred = predict(h.rf, hitdf.test)
+mean((h.rf.pred - hitdf.test$LogSal)^2)
+```
+
+## Question 11
+
+### a
+```{r}
+caravan.train = Caravan[1:1000,]
+caravan.test = Caravan[1001:nrow(Caravan),]
+
+caravan.train$Purchase = ifelse(caravan.train$Purchase == "Yes", 1, 0)
+caravan.test$Purchase = ifelse(caravan.test$Purchase == "Yes", 1, 0)
+```
+### b
+```{r}
+caravan.boost = gbm(Purchase~., data = caravan.train, distribution = "bernoulli", n.trees = 1000, shrinkage = 0.01)
+summary(caravan.boost)
+```
+### c
+```{r}
+caravan.pred = predict(caravan.boost, newdata = caravan.test, n.trees = 1000, type="response")
+caravan.pred.f = ifelse(caravan.pred > 0.2, 1, 0)
+table(caravan.test$Purchase, caravan.pred.f)
+```
+```{r}
+(30)/(101+30)
+```
+```{r}
+# logarithmic regression
+caravan.log = glm( Purchase~., data = caravan.train, family="binomial")
+caravan.log.pred = predict( caravan.log, newdata = caravan.test, type = "response")
+caravan.log.pred.f = ifelse(caravan.log.pred > 0.2, 1, 0)
+table(caravan.test$Purchase, caravan.log.pred.f)
+```
+```{r}
+(58)/(231+58)
+```
+```{r}
+# KNN
+library(class)
+trainX = caravan.train[,-86]
+testX = caravan.test[,-86]
+
+caravan.knn = knn(trainX, testX, caravan.train$Purchase, k=2)
+table(caravan.test$Purchase, caravan.knn)
+```
+```{r}
+(27)/(27+262)
+```

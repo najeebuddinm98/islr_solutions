@@ -1,0 +1,113 @@
+---
+title: "2.4 Exercises"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Applied
+
+### Question 8
+
+```{r}
+df = read.csv("College.csv")
+fix(df)
+head(df)
+```
+```{r}
+rownames(df)=df[,1]
+df=df[,-1]
+fix(df)
+head(df)
+```
+```{r}
+summary(df)
+```
+```{r}
+pairs(df[,2:11])
+```
+```{r}
+df$Private=as.factor(df$Private)
+plot(df$Private, df$Outstate)
+```
+```{r}
+Elite = rep("No", nrow(df)) #replicate the string for given number of times i.e now of rows in df
+filt=df$Top10perc>50
+Elite[filt]="Yes"
+df=data.frame(df, Elite)
+head(df)
+```
+```{r}
+summary(df$Elite)
+df$Elite=as.factor(df$Elite)
+plot(df$Elite, df$Outstate)
+```
+```{r}
+par(mfrow=c(3,1))
+hist(df$Apps, main = "No of applications",  )
+hist(df$Accept, main="Accepted number")
+hist(df$Enroll, main = "Enrolled number")
+```
+### Question 9
+
+```{r}
+aa=read.table("Auto.data", header=T, na.strings = "?")
+fix(aa)
+head(aa)
+```
+```{r}
+summary(aa)
+```
+
+```{r}
+range(aa$mpg)
+range(aa$displacement)
+```
+```{r}
+mean(aa$horsepower, na.rm = T)
+sd(aa$horsepower, na.rm = T)
+mean(aa$weight)
+sd(aa$weight)
+```
+```{r}
+modaa=aa[-(10:85),]
+dim(aa)
+dim(modaa)
+summary(modaa)
+```
+```{r}
+aa$year=as.factor(aa$year)
+aa$origin=as.factor(aa$origin)
+aa$cylinders=as.factor(aa$cylinders)
+pairs(aa[,-9])
+```
+
+### Question 10
+
+```{r}
+library(MASS)
+dim(Boston)
+head(Boston)
+```
+```{r}
+pairs(Boston)
+```
+```{r}
+summary(as.factor(Boston$chas))
+```
+```{r}
+mean(Boston$crim)
+hist(Boston$crim, breaks=seq(0, 100, 5))
+```
+```{r}
+filt2=Boston$crim > 50
+head(Boston[filt2,])
+```
+```{r}
+median(Boston$ptratio)
+```
+```{r}
+nrow(Boston[Boston$rm > 7,])
+```

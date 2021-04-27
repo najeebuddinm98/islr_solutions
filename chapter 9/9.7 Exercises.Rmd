@@ -1,0 +1,340 @@
+---
+title: '9.7: Exercises'
+output:
+  html_document:
+    df_print: paged
+---
+
+# Applied
+
+## Question 4
+
+```{r}
+set.seed(5)
+x = matrix(rnorm(100*2), ncol=2)
+x[1:50,] = x[1:50,] + 3
+x[51:75,] = x[51:75,] - 3
+y = c(rep(1,75), rep(2,25))
+plot(x, col=y)
+```
+```{r}
+set.seed(5)
+df4 = data.frame(x=x, y=as.factor(y))
+train = sample(100,60)
+```
+
+```{r}
+library(e1071)
+set.seed(5)
+lin.tune = tune( svm, y~., data = df4[train,], kernel="linear", scale=F,
+                 ranges=list(cost=c(0.001,0.001,0.1,1,5,10,100)))
+summary(lin.tune)
+```
+Our best linear model has a cost=0.001 with a training error rate of 0.217.
+Now, we look at a polynomial kernel for svm.
+```{r}
+set.seed(5)
+pol.tune = tune( svm, y~., data = df4[train,], kernel="polynomial", scale=F,
+                 ranges=list(cost=c(0.01,0.1,1),degree=c(2,3,4)))
+summary(pol.tune)
+```
+Our best linear model has a cost=0.1 and degree=2 with a zero training error.
+Now, we look at a radial kernel for svm.
+```{r}
+set.seed(5)
+rad.tune = tune( svm, y~., data = df4[train,], kernel="radial", scale=F,
+                 ranges=list(cost=c(0.01,0.1,1),gamma=c(0.1,1,2,5)))
+summary(rad.tune)
+```
+Our best radial model has a cost=1 and gamma=0.1 with a training error rate of 0.017.
+Now, we look at the test accuracies
+```{r}
+table(true=df4[-train, "y"], pred=predict(lin.tune$best.model, newdata = df4[-train,]))
+```
+```{r}
+28/40
+```
+```{r}
+table(true=df4[-train, "y"], pred=predict(pol.tune$best.model, newdata = df4[-train,]))
+```
+```{r}
+(28+11)/40
+```
+```{r}
+table(true=df4[-train, "y"], pred=predict(rad.tune$best.model, newdata = df4[-train,]))
+```
+```{r}
+(28+10)/40
+```
+Hence, both the polynomial and radial kernel-based SVMs perform far better on our non-linear dataset both in terms of training accuracy and test accuracy.
+
+## Question 5
+
+### a
+```{r}
+x1 = runif(500) - 0.5
+x2 = runif(500) - 0.5
+y = 1 * (x1^2 - x2^2 > 0)
+```
+
+### b
+```{r}
+plot(matrix(c(x1,x2), ncol=2), col=y+7)
+```
+### c
+```{r}
+df5 = data.frame( x= matrix(c(x1,x2), ncol=2), y=as.factor(y))
+set.seed(5)
+library(glmnet)
+log.mod = glm( y~., data = df5, family="binomial")
+summary(log.mod)
+```
+### d
+```{r}
+log.pred = predict(log.mod, type = "response")
+log.class = rep(0,500)
+log.class[log.pred > 0.5] = 1
+
+plot(matrix(c(x1,x2), ncol=2), col=log.class+1)
+```
+### e
+```{r}
+set.seed(5)
+log.mod2 = glm( y ~ poly(x.1,2)+log(x.2)+I(x.1*x.2), data = df5, family="binomial")
+summary(log.mod2)
+```
+### f
+```{r}
+log.pred2 = predict(log.mod2, type = "response")
+log.class2 = rep(0,500)
+log.class2[log.pred2 > 0.5] = 1
+
+plot(matrix(c(x1,x2), ncol=2), col=log.class2+1)
+```
+### g
+```{r}
+set.seed(5)
+svm.mod = svm( y~., data = df5, scale = F, cost=1, kernel="linear")
+
+svm.pred = predict( svm.mod, newdata=df5 )
+plot(matrix(c(x1,x2), ncol=2), col=type.convert(svm.pred, "vector")+1)
+```
+### h
+```{r}
+set.seed(5)
+svm.mod2 = svm( y~., data = df5, scale = F, cost=1, gamma=2, kernel="radial")
+
+svm.pred2 = predict( svm.mod2, newdata=df5 )
+plot(matrix(c(x1,x2), ncol=2), col=type.convert(svm.pred2, "vector")+1)
+```
+### i
+As expected, our non-linear kernel SVM perfomed better than our linear models due to the dataset being non-linear. Even though we know our data is quadratic, we chose a radial kernel above to show how it can result in a more generalised model that better suits our data.
+
+## Question 6
+
+### a
+```{r}
+set.seed(5)
+x6 = matrix(rnorm(100*2), ncol=2)
+y6 = sample(c(-1,1), 100, replace = TRUE)
+x6[y6==1,] = x6[y6==1,] + 1.5
+
+plot(x6, col=y6+5)
+```
+### b
+```{r}
+set.seed(5)
+df6 = data.frame(x=x6, y=as.factor(y6))
+tune.6 = tune(svm, y~., data=df6, kernel="linear", scale=F,
+              ranges = list(cost=c(0.001, 0.01, 0.1, 1, 10, 100)))
+summary(tune.6)
+```
+Our best model is obtained with a cost funtion is 0.01, 10 or 100
+
+### c
+```{r}
+set.seed(5)
+xtest6 = matrix(rnorm(40*2), ncol=2)
+ytest6 = sample(c(-1,1), 40, replace = TRUE)
+xtest6[ytest6==1,] = xtest6[ytest6==1,] + 1
+testdf6 = data.frame(x=xtest6, y=as.factor(ytest6))
+```
+
+```{r}
+for (i in c(0.001, 0.01, 0.1, 1, 10, 100)){
+  temp.mod = svm(y~., data=df6, scale=F, kernel="linear", cost=i)
+  print(table(true=testdf6$y, pred=predict(temp.mod, newdata = testdf6)))
+}
+```
+
+Our best model is obtained with any cost function greater than 0.01.
+
+### d
+As we can observe, increasing the cost parameter does not result in an increase in accuracy for our randomised dataset. But taking a lower value results in a more generalised model that might perform better for unseen data.
+
+## Question 7
+
+```{r}
+library(ISLR)
+df7 = Auto
+head(df7)
+```
+
+### a
+```{r}
+df7$gasmil = rep(0,392)
+med = median(df7$mpg)
+df7$gasmil[ df7$mpg > med ] = 1
+df7$gasmil = as.factor(df7$gasmil)
+head(df7)
+```
+### b
+```{r}
+set.seed(5)
+tune.7 = tune( svm, gasmil~., data=df7, kernel="linear", scale=F, 
+               ranges=list(cost=c(0.001,0.001,0.1,1,5,10,100)) )
+summary(tune.7)
+```
+All the cost parameters give us very little error, but cost=1  gives us the least cross-validation error, nearly equal to zero.
+
+### c
+```{r}
+set.seed(5)
+pol.tune.7 = tune( svm, gasmil~., data = df7, kernel="polynomial", scale=F,
+                 ranges=list(cost=c(0.01,0.1,1,5),degree=c(2,3,4)))
+summary(pol.tune.7)
+```
+The least cross-validation error is obtained when degree=2, irrespective of the cost parameter. It is important to note that the erros are slightly higher than the linear model.
+```{r}
+set.seed(5)
+rad.tune.7 = tune( svm, gasmil~., data = df7, kernel="radial", scale=F,
+                 ranges=list(cost=c(0.001,0.01,0.1,1,5,10),gamma=c(0.1,1,2,5,10)))
+summary(rad.tune.7)
+```
+The radial kernel-based model gives very high cross-validation errors irrespective of the parameter values we choose.
+
+### d
+```{r}
+svc.7 = svm(gasmil~., data=df7, kernel="linear", scale=F, cost=1)
+plot( svc.7, df7, mpg~horsepower)
+```
+```{r}
+plot( svc.7, df7, mpg~weight)
+```
+
+## Question 8
+
+### a
+```{r}
+library(ISLR)
+set.seed(5)
+train8 = sample(1070,800)
+#-train8 will be our test8
+```
+
+### b
+```{r}
+svc.8 = svm(Purchase~., data=OJ[train8,], scale=F, kernel="linear", cost=0.01)
+summary(svc.8)
+```
+We have 617 out of 800 observations that act as support vectors, meaning that a more observations lie on the margin than away from it.
+
+### c
+```{r}
+table( true=OJ[train8,"Purchase"], pred=predict(svc.8))
+```
+```{r}
+(457+148)/800
+```
+We have a training accuracy just above 0.75
+### c
+```{r}
+table( true=OJ[-train8,"Purchase"], pred=predict(svc.8, newdata=OJ[-train8,]))
+```
+```{r}
+(155+46)/270
+```
+We have a test accuracy of approx 0.74, which is very close to the training accuracy. This means that our model is well generalised and robust.
+
+### d
+```{r}
+tune.8 = tune(svm, Purchase~., data=OJ[train8,], scale=F, kernel="linear",
+              ranges=list(cost=c(0.01,0.1,1,5,10)))
+summary(tune.8)
+```
+Our best model is when cost=5
+
+### e
+```{r}
+table( true=OJ[train8,"Purchase"], pred=predict(tune.8$best.model))
+```
+```{r}
+(433+236)/800
+```
+### e
+```{r}
+table( true=OJ[-train8,"Purchase"], pred=predict(tune.8$best.model, newdata=OJ[-train8,]))
+```
+```{r}
+(146+81)/270
+```
+Our accuracies are higher than those obtained above
+
+### f
+```{r}
+rad.svm.8 = svm(Purchase~., data=OJ[train8,], scale=F, kernel="radial", cost=0.01)
+table( true=OJ[train8,"Purchase"], pred=predict(rad.svm.8) )
+```
+```{r}
+490/800
+```
+```{r}
+table( true=OJ[-train8,"Purchase"], pred=predict(rad.svm.8, newdata=OJ[-train8,]) )
+```
+```{r}
+163/270
+```
+The default radial model classifies all the observations as "CH". We now attmept croos-validation.
+```{r}
+set.seed(5)
+rad.tune.8 = tune(svm, Purchase~., data=OJ[train8,], scale=F, kernel="radial",
+              ranges=list(cost=c(0.01,0.1,1,5,10)))
+summary(rad.tune.8)
+```
+Our best cost is 10 at the default gamma value of 1.
+```{r}
+table( true=OJ[train8,"Purchase"], pred=predict(rad.tune.8$best.model))
+```
+```{r}
+(454+225)/800
+```
+```{r}
+table( true=OJ[-train8,"Purchase"], pred=predict(rad.tune.8$best.model, newdata=OJ[-train8,]))
+```
+```{r}
+(146+63)/270
+```
+
+### g
+```{r}
+poly.svm.8 = svm(Purchase~., data=OJ[train8,], scale=F, kernel="polynomial", degree=2, cost=0.01)
+table( true=OJ[train8,"Purchase"], pred=predict(poly.svm.8) )
+```
+```{r}
+(429+240)/800
+```
+```{r}
+table( true=OJ[-train8,"Purchase"], pred=predict(poly.svm.8, newdata=OJ[-train8,]) )
+```
+```{r}
+(145+82)/270
+```
+The following code is to be run for finding the cross-validation results on the polynomial kernel, but it gives multiple "WARNING: reaching max number of iterations" warnings and refuses to give an output on my system. Follow similar procedure as done for radial kernel to find best model, training accuracy and test accuracy.
+```
+poly.tune.8 = tune(svm, Purchase~., data=OJ[train8,], scale=F, kernel="polynomial", degree=2,
+              ranges=list(cost=c(0.01,0.1,1,10)))
+summary(tune.8)
+```
+
+### h
+We need to choose the algorithm that gives us good accuracy on the testing data while making sure we don't overfit or underfit the data.

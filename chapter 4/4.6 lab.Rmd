@@ -1,0 +1,204 @@
+---
+title: "4.6 Exercises"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 4.6.1 Stock Market Data
+```{r}
+library(ISLR)
+dim(Smarket)
+names(Smarket)
+summary(Smarket)
+```
+```{r}
+cor(Smarket[,-9]) #direction is non-numeric, so cannot be passed to cor()
+```
+```{r}
+plot(Smarket$Volume)
+```
+## 4.6.2 Logistic Regression
+```{r}
+logreg1 = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data = Smarket, family = binomial)
+summary(logreg1)
+```
+```{r}
+coefficients(logreg1)
+print("")
+summary(logreg1)$coef
+print("")
+summary(logreg1)$coef[,4]
+```
+```{r}
+logreg1.predict = predict(logreg1, type = "response")
+logreg1.predict[1:10] #gives the response for the first 10 values in the training data
+contrasts(Smarket$Direction) #how is the dummy variable assigned
+```
+```{r}
+logreg1.class = rep("Down", 1250)
+logreg1.class[logreg1.predict > 0.5] = "Up"
+table(logreg1.class, Smarket$Direction)
+mean(logreg1.class == Smarket$Direction)
+```
+```{r}
+#creating training data from 2001-2004 abd using 2005 data as test data
+train.filter = (Smarket$Year < 2005)
+Smarket.2005 = Smarket[!train.filter,]
+Direction.2005 = Smarket$Direction[!train.filter]
+dim(Smarket.2005)
+```
+```{r}
+logreg2 = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data = Smarket, subset = train.filter, family = binomial) #subset parameter does the same work as Smarket[train,]
+summary(logreg2)
+```
+```{r}
+logreg2.predict = predict(logreg2, Smarket.2005, type = "response")
+logreg2.class = rep("Down", 252)
+logreg2.class[logreg2.predict > 0.5] = "Up"
+table(logreg2.class, Direction.2005)
+print("Test error rate")
+mean(logreg2.class != Direction.2005)
+```
+Clearly, the test error rate is worse than random guessing (50%). That is to be expected as this is Stock Market predictions. We try reducing the number of predictors to 2, to get better p-values as atleast
+```{r}
+logreg3 = glm(Direction~Lag1+Lag2, data = Smarket, subset = train.filter, family = binomial)
+summary(logreg3)$coef
+logreg3.predict = predict(logreg3, Smarket.2005, type = "response")
+logreg3.class = rep("Down", 252)
+logreg3.class[logreg3.predict > 0.5] = "Up"
+table(logreg3.class, Direction.2005)
+```
+```{r}
+predict(logreg3, data.frame( Lag1=c(1.2, 1.5), Lag2=c(1.1,-0.8) ), type = "response")
+```
+
+## 4.6.3 Linear Discriminant Analysis
+```{r}
+library(MASS)
+ldam1 = lda(Direction~Lag1+Lag2, data = Smarket, subset = train.filter)
+ldam1
+print("Summary")
+summary(ldam1)  #as seen below, it is useless
+```
+```{r}
+plot(ldam1)
+```
+```{r}
+ldam1.predict = predict(ldam1, Smarket.2005)
+names(ldam1.predict)
+```
+```{r}
+ldam1.class = ldam1.predict$class
+table(ldam1.class, Direction.2005)
+mean(ldam1.class == Direction.2005)
+```
+```{r}
+sum(ldam1.predict$posterior[,1] >= 0.5) #number of observations whose DOWN probability is >=0.5
+sum(ldam1.predict$posterior[,2] >= 0.5) #number of observations whose UP probability is >=0.5
+```
+Changing the 0.5 value changes the threshold we want for the probability, as follows.
+```{r}
+sum(ldam1.predict$posterior >= 0.9)
+```
+```{r}
+ldam1.class[1:20]
+```
+### 4.6.4 Quadratic Discriminant Analysis
+```{r}
+library(MASS)
+qdam1 = qda(Direction~Lag1+Lag2, data=Smarket, subset=train.filter)
+qdam1
+```
+```{r}
+qdam1.predict = predict(qdam1, Smarket.2005)
+qdam1.class = qdam1.predict$class
+table(qdam1.class, Direction.2005)
+mean(qdam1.class == Direction.2005)
+```
+## 4.6.5 KNN
+We need 4 parameters to pass into the knn() function - training predictors, test predictors, training response and K value
+```{r}
+library(class)
+train.X = cbind(Smarket$Lag1, Smarket$Lag2)[train.filter, ]
+test.X = cbind(Smarket$Lag1, Smarket$Lag2)[!train.filter, ]
+train.Y = Smarket$Direction[train.filter]
+```
+Now, we train and predict with K = 1
+```{r}
+set.seed(1)
+knnm = knn(train.X, test.X, train.Y, k=1)
+table(knnm, Direction.2005)
+mean(knnm == Direction.2005)
+```
+Now, we try with K = 3
+```{r}
+knnm3 = knn(train.X, test.X, train.Y, k=3)
+table(knnm3, Direction.2005)
+mean(knnm3 == Direction.2005)
+```
+
+ Clearly, QDA was the best method for the Stock Market data we have
+ 
+ ## 4.6.6 Caravan Insurance Data
+
+```{r}
+library(ISLR)
+dim(Caravan)
+names(Caravan)
+summary(Caravan$Purchase)
+```
+```{r}
+standardized.X = scale(Caravan[,-86]) #standardizes the columns except Purchase such that they all have a variance=1
+var(Caravan[,1])
+var(standardized.X[,1])
+```
+Now, we train the model using KNN
+```{r}
+test.filter = 1:1000
+training.X = standardized.X[-test.filter, ]
+training.Y = Caravan$Purchase[-test.filter]
+testing.X = standardized.X[test.filter, ]
+testing.Y = Caravan$Purchase[test.filter]
+set.seed(1)
+knnm.new1 = knn(training.X, testing.X, training.Y, k=1)
+table(knnm.new1, testing.Y)
+```
+Looking at the performance
+```{r}
+print("Test error rate")
+mean(testing.Y != knnm.new1)
+9/(68+9)
+```
+Using K=3
+```{r}
+knnm.new3 = knn(training.X, testing.X, training.Y, k=3)
+table(knnm.new3, testing.Y)
+mean(testing.Y != knnm.new3)
+5/(21+5)
+```
+Using K=5
+```{r}
+knnm.new5 = knn(training.X, testing.X, training.Y, k=5)
+table(knnm.new5, testing.Y)
+mean(testing.Y != knnm.new5)
+4/(4+11)
+```
+Using Logarithmic Regression for the same with Threshold=0.5
+```{r}
+logrm5 = glm(Purchase~., data=Caravan, subset = -test.filter, family = binomial)
+logrm5.pred = predict(logrm5, Caravan[test.filter, ],  type="response")
+logrm5.class = rep("No", 1000)
+logrm5.class[logrm5.pred > 0.5] = "Yes"
+table(logrm5.class, Caravan$Purchase[test.filter])
+```
+Using Logarithmic Regression for the same with Threshold=0.25
+```{r}
+logrm2.5.class = rep("No", 1000)
+logrm2.5.class[logrm5.pred > 0.25] = "Yes"
+table(logrm2.5.class, Caravan$Purchase[test.filter])
+```
+
+
